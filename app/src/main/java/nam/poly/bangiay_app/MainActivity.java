@@ -1,0 +1,80 @@
+package nam.poly.bangiay_app;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+public class MainActivity extends AppCompatActivity {
+
+    private SessionManager sessionManager;
+    private View navAccount;
+    private ImageView imgAccountIcon;
+    private TextView tvAccountLabel;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_main);
+
+        sessionManager = new SessionManager(this);
+        initAccountNav();
+        updateAccountNavUi();
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateAccountNavUi();
+    }
+
+    private void initAccountNav() {
+        navAccount = findViewById(R.id.navAccount);
+        imgAccountIcon = findViewById(R.id.imgAccountIcon);
+        tvAccountLabel = findViewById(R.id.tvAccountLabel);
+
+        if (navAccount != null) {
+            navAccount.setOnClickListener(v -> {
+                if (sessionManager.isLoggedIn()) {
+                    sessionManager.setLoggedIn(false);
+                    Toast.makeText(MainActivity.this, R.string.logout, Toast.LENGTH_SHORT).show();
+                    updateAccountNavUi();
+                } else {
+                    Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                    startActivity(intent);
+                }
+            });
+        }
+    }
+
+    private void updateAccountNavUi() {
+        boolean isLoggedIn = sessionManager.isLoggedIn();
+
+        if (tvAccountLabel != null) {
+            tvAccountLabel.setText(isLoggedIn ? R.string.logout : R.string.account);
+        }
+
+        if (imgAccountIcon != null) {
+            imgAccountIcon.setImageResource(isLoggedIn ? R.drawable.ic_logout : R.drawable.ic_user);
+            int color = ContextCompat.getColor(this,
+                    isLoggedIn ? android.R.color.holo_red_dark : android.R.color.black);
+            imgAccountIcon.setColorFilter(color);
+        }
+    }
+}
