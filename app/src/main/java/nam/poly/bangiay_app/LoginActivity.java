@@ -1,15 +1,25 @@
 package nam.poly.bangiay_app;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import nam.poly.bangiay_app.network.ApiClient;
+import nam.poly.bangiay_app.network.ApiService;
+import nam.poly.bangiay_app.network.NetworkUtils;
+import nam.poly.bangiay_app.network.model.AuthResponse;
+import nam.poly.bangiay_app.network.request.LoginRequest;
+import nam.poly.bangiay_app.network.model.UserResponse;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -17,6 +27,8 @@ public class LoginActivity extends AppCompatActivity {
     private Button btnLogin, btnRegister, btnForgotPassword;
     private View btnBack;
     private SessionManager sessionManager;
+    private ApiService apiService;
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,6 +36,10 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         sessionManager = new SessionManager(this);
+        apiService = ApiClient.getApiService();
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Đang xử lý...");
+        progressDialog.setCancelable(false);
         initViews();
         setupClickListeners();
     }
@@ -63,7 +79,7 @@ public class LoginActivity extends AppCompatActivity {
 
         // Validation
         if (TextUtils.isEmpty(phoneEmail)) {
-            edtPhoneEmail.setError("Vui lòng nhập SDT/Email");
+            edtPhoneEmail.setError("Vui lòng nhập Email");
             edtPhoneEmail.requestFocus();
             return;
         }
@@ -80,17 +96,59 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        // TODO: Implement actual login logic here (API call, database check, etc.)
-        // For now, just show a success message
-        Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
+        performLogin(phoneEmail, password);
+    }
 
-        sessionManager.setLoggedIn(true);
-        
-        // Navigate to MainActivity after successful login
-        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+    private void performLogin(String email, String password) {
+        setLoading(true);
+        LoginRequest request = new LoginRequest(email, password);
+        apiService.login(request).enqueue(new Callback<AuthResponse>() {
+            @Override
+            public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
+                setLoading(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    AuthResponse data = response.body();
+                    sessionManager.setLoggedIn(true);
+                    UserResponse user = data.getUser();
+                    if (user != null) {
+                        String displayName = user.getFullName() != null && !user.getFullName().isEmpty()
+                                ? user.getFullName()
+                                : user.getUsername();
+                        sessionManager.saveUserInfo(displayName, user.getEmail());
+                    }
+                    if (data.getToken() != null) {
+                        sessionManager.saveToken(data.getToken());
+                    }
+                    Toast.makeText(LoginActivity.this,
+                            data.getMessage() != null ? data.getMessage() : "Đăng nhập thành công!",
+                            Toast.LENGTH_SHORT).show();
+
+                    Intent intent = new Intent(LoginActivity.this, AccountActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                } else {
+                    String message = NetworkUtils.getErrorMessage(response);
+                    Toast.makeText(LoginActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AuthResponse> call, Throwable t) {
+                setLoading(false);
+                Toast.makeText(LoginActivity.this, "Lỗi mạng: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void setLoading(boolean isLoading) {
+        if (isLoading) {
+            if (!progressDialog.isShowing()) {
+                progressDialog.show();
+            }
+        } else if (progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
     }
 }
 

@@ -1,27 +1,42 @@
 package nam.poly.bangiay_app;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import nam.poly.bangiay_app.network.ApiClient;
+import nam.poly.bangiay_app.network.ApiService;
+import nam.poly.bangiay_app.network.NetworkUtils;
+import nam.poly.bangiay_app.network.model.AuthResponse;
+import nam.poly.bangiay_app.network.request.RegisterRequest;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class RegisterActivity extends AppCompatActivity {
 
     private EditText edtPhoneEmail, edtPassword, edtConfirmPassword;
     private Button btnRegister;
     private View btnBack;
+    private ApiService apiService;
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
+        apiService = ApiClient.getApiService();
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Đang xử lý...");
+        progressDialog.setCancelable(false);
         initViews();
         setupClickListeners();
     }
@@ -49,7 +64,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         // Validation
         if (TextUtils.isEmpty(phoneEmail)) {
-            edtPhoneEmail.setError("Vui lòng nhập SDT/Email");
+            edtPhoneEmail.setError("Vui lòng nhập Email");
             edtPhoneEmail.requestFocus();
             return;
         }
@@ -78,15 +93,49 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // TODO: Implement actual registration logic here (API call, database save, etc.)
-        // For now, just show a success message
-        Toast.makeText(this, "Đăng ký thành công!", Toast.LENGTH_SHORT).show();
-        
-        // Navigate to LoginActivity after successful registration
-        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+        performRegister(phoneEmail, password);
+    }
+
+    private void performRegister(String email, String password) {
+        setLoading(true);
+        // Dùng email làm tên đăng nhập để phù hợp API
+        RegisterRequest request = new RegisterRequest(email, password, "", email);
+        apiService.register(request).enqueue(new Callback<AuthResponse>() {
+            @Override
+            public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
+                setLoading(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    AuthResponse data = response.body();
+                    Toast.makeText(RegisterActivity.this,
+                            data.getMessage() != null ? data.getMessage() : "Đăng ký thành công!",
+                            Toast.LENGTH_SHORT).show();
+
+                    Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                } else {
+                    String message = NetworkUtils.getErrorMessage(response);
+                    Toast.makeText(RegisterActivity.this, message, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AuthResponse> call, Throwable t) {
+                setLoading(false);
+                Toast.makeText(RegisterActivity.this, "Lỗi mạng: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void setLoading(boolean isLoading) {
+        if (isLoading) {
+            if (!progressDialog.isShowing()) {
+                progressDialog.show();
+            }
+        } else if (progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
     }
 }
 

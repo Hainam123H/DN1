@@ -52,9 +52,8 @@ public class MainActivity extends AppCompatActivity {
         if (navAccount != null) {
             navAccount.setOnClickListener(v -> {
                 if (sessionManager.isLoggedIn()) {
-                    sessionManager.setLoggedIn(false);
-                    Toast.makeText(MainActivity.this, R.string.logout, Toast.LENGTH_SHORT).show();
-                    updateAccountNavUi();
+                    Intent intent = new Intent(MainActivity.this, AccountActivity.class);
+                    startActivity(intent);
                 } else {
                     Intent intent = new Intent(MainActivity.this, LoginActivity.class);
                     startActivity(intent);
@@ -64,16 +63,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateAccountNavUi() {
-        boolean isLoggedIn = sessionManager.isLoggedIn();
-
         if (tvAccountLabel != null) {
-            tvAccountLabel.setText(isLoggedIn ? R.string.logout : R.string.account);
+            tvAccountLabel.setText(R.string.account);
         }
 
         if (imgAccountIcon != null) {
-            imgAccountIcon.setImageResource(isLoggedIn ? R.drawable.ic_logout : R.drawable.ic_user);
-            int color = ContextCompat.getColor(this,
-                    isLoggedIn ? android.R.color.holo_red_dark : android.R.color.black);
+            imgAccountIcon.setImageResource(R.drawable.ic_user);
+            int color = ContextCompat.getColor(this, android.R.color.black);
             imgAccountIcon.setColorFilter(color);
         }
     }

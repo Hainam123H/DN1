@@ -2,4 +2,6 @@
     <string name="app_name">BanGiay_App</string>
     <string name="logout">Đăng xuất</string>
     <string name="account">Tài khoản</string>
+    <string name="back">Quay lại</string>
+    <string name="default_user_name">Người dùng</string>
 </resources>
